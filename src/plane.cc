@@ -1,11 +1,11 @@
 #include <unordered_map>
 #include <queue>
 #include <set>
+#include <algorithm>
 
 #include <igl/readOBJ.h>
 
-#define GRID_RESOLUTION 1000
-#define ANGLE_THRES 5.0
+#define GRID_RESOLUTION 5
 
 typedef std::pair<int, std::pair<int, int> > VertexHash;
 void ComputeSurfaceNormals(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, Eigen::MatrixXd* pFN) {
@@ -41,6 +41,8 @@ void NormalizeVertices(Eigen::MatrixXd& V) {
 			V(i, j) = v;
 		}
 	}
+        for (int i = 0; i < 3; ++i)
+            printf("%d: %.3f", i, max_corner[i]-min_corner[i]);
 }
 
 void VisualizeSurfaceColor(const char* filename,
@@ -52,7 +54,7 @@ void VisualizeSurfaceColor(const char* filename,
 		Eigen::Vector3d v0 = V.row(F(i, 0));
 		Eigen::Vector3d v1 = V.row(F(i, 1));
 		Eigen::Vector3d v2 = V.row(F(i, 2));
-		Eigen::Vector3d n = FN.row(i);		
+		Eigen::Vector3d n = FN.row(i);
 		n = n * 0.49 + Eigen::Vector3d(0.5, 0.5, 0.5);
 		os << "v " << v0[0] << " " << v0[1] << " " << v0[2] << " "
 		   << n[0] << " " << n[1] << " " << n[2] << "\n";
@@ -70,15 +72,15 @@ void VisualizeSurfaceColor(const char* filename,
 }
 
 VertexHash EncodeVertex(const Eigen::Vector3d& v) {
-	int x = v[0] * GRID_RESOLUTION;
-	int y = v[1] * GRID_RESOLUTION;
-	int z = v[2] * GRID_RESOLUTION;
+    int x = std::floor((5000+v[0]) * GRID_RESOLUTION);
+    int y = std::floor((5000+v[1]) * GRID_RESOLUTION);
+    int z = std::floor((5000+v[2]) * GRID_RESOLUTION);
 	return std::make_pair(x, std::make_pair(y, z));
 }
 
 long long Key(const VertexHash& h) {
-	return ((long long)h.first * GRID_RESOLUTION + (long long)h.second.first)
-		* GRID_RESOLUTION + (long long)h.second.second;
+    return ((long long)h.first * GRID_RESOLUTION * 10000 + (long long)h.second.first)
+        * GRID_RESOLUTION * 10000 + (long long)h.second.second;
 }
 
 void CreateNeighborHash(const VertexHash& h, std::vector<VertexHash>* h_array) {
@@ -98,12 +100,14 @@ void CreateNeighborHash(const VertexHash& h, std::vector<VertexHash>* h_array) {
 int main(int argc, char** argv)
 {
 	if (argc < 2) {
-		printf("./plane input.obj output.txt [visual.obj]\n");
+        printf("./plane input.obj output.txt [visual.obj] [ANGLE] \n");
 		return 0;
 	}
 	const char* input_file = argv[1];
 	const char* output_file = argv[2];
 	const char* visual_file = (argc > 3) ? argv[3] : 0;
+    const double max_angle = (argc > 4) ? std::stof(argv[4]) : 10;
+
 
 	Eigen::MatrixXd V_orig;
 	Eigen::MatrixXd V;
@@ -113,7 +117,7 @@ int main(int argc, char** argv)
 
 	if (argc > 3)
 		V_orig = V;
-	NormalizeVertices(V);
+    // NormalizeVertices(V);
 	ComputeSurfaceNormals(V, F, &FN);
 
 	//VisualizeSurfaceNormal(output_file, V, F, FN);
@@ -168,7 +172,7 @@ int main(int argc, char** argv)
 						if (visited[nf])
 							continue;
 						Eigen::Vector3d nn = FN.row(nf);
-						if (std::acos(std::abs(nn.dot(n))) / 3.141592654 * 180.0 < ANGLE_THRES) {
+                        if (std::acos(std::min(1.0, std::abs(nn.dot(n)))) / 3.141592654 * 180.0 < max_angle) {
 							visited[nf] = num_group;
 							faces_queue.push(nf);
 						}
@@ -205,4 +209,3 @@ int main(int argc, char** argv)
 	}
 	return 0;
 }
-

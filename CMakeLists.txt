@@ -13,6 +13,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS}")
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG}")
 
+include_directories(3rd)
+include_directories(/usr/include/eigen3)
+
 add_executable(
     plane
     src/plane.cc
